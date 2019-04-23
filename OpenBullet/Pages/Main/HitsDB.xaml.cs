@@ -335,7 +335,7 @@ namespace OpenBullet
 
             // Import it
             var listName = fileName.Substring(0, fileName.Length - 4);
-            var wordlist = new Wordlist(listName, path, "Unknown", "");
+            var wordlist = new Wordlist(listName, path, Globals.environment.RecognizeWordlistType(first.Data), "");
             Globals.mainWindow.WordlistManagerPage.AddWordlist(wordlist);
 
             var runner = Globals.mainWindow.CurrentRunnerPage;
@@ -359,8 +359,9 @@ namespace OpenBullet
             // Try to select the config referring to the first selected hit
             try
             {
-                runner.vm.SetConfig(Globals.mainWindow.ConfigsPage.ConfigManagerPage.vm.ConfigsList.Where(c => c.Name == first.ConfigName).First().Config,
-                    Globals.obSettings.General.RecommendedBots);
+                var cfg = Globals.mainWindow.ConfigsPage.ConfigManagerPage.vm.ConfigsList.First(c => c.Name == first.ConfigName).Config;
+                runner.vm.SetConfig(cfg, false);
+                runner.vm.BotsNumber = Math.Min(cfg.Settings.SuggestedBots, hitsListView.SelectedItems.Count);
             }
             catch { }
 
