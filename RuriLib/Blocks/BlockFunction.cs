@@ -78,6 +78,9 @@ namespace RuriLib
             /// <summary>Generates a random integer.</summary>
             RandomNum,
 
+            /// <summary>Generates a random string based on a mask.</summary>
+            RandomString,
+
             /// <summary>Rounds a decimal input to the upper integer.</summary>
             Ceil,
 
@@ -584,6 +587,32 @@ namespace RuriLib
                         outputString = (data.rand.Next(randomMin, randomMax)).ToString();
                         break;
 
+                    case Function.RandomString:
+                        var reserved = new string[] { "?l", "?u", "?d", "?s", "?h", "?a" };
+                        var lowercase = "abcdefghijklmnopqrstuvwxyz";
+                        var uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                        var digits = "0123456789";
+                        var symbols = "\\!\"£$%&/()=?^'{}[]@#,;.:-_*+";
+                        var hex = digits + "abcdef";
+                        var allchars = lowercase + uppercase + digits + symbols;
+
+                        outputString = localInputString;
+                        while (reserved.Any(r => outputString.Contains(r))){
+                            if (outputString.Contains("?l"))
+                                outputString = ReplaceFirst(outputString, "?l", lowercase[data.rand.Next(0, lowercase.Length)].ToString());
+                            else if (outputString.Contains("?u"))
+                                outputString = ReplaceFirst(outputString, "?u", uppercase[data.rand.Next(0, uppercase.Length)].ToString());
+                            else if (outputString.Contains("?d"))
+                                outputString = ReplaceFirst(outputString, "?d", digits[data.rand.Next(0, digits.Length)].ToString());
+                            else if (outputString.Contains("?s"))
+                                outputString = ReplaceFirst(outputString, "?s", symbols[data.rand.Next(0, symbols.Length)].ToString());
+                            else if (outputString.Contains("?h"))
+                                outputString = ReplaceFirst(outputString, "?h", hex[data.rand.Next(0, hex.Length)].ToString());
+                            else if (outputString.Contains("?a"))
+                                outputString = ReplaceFirst(outputString, "?a", allchars[data.rand.Next(0, allchars.Length)].ToString());
+                        }
+                        break;
+
                     case Function.Ceil:
                         outputString = Math.Ceiling(Decimal.Parse(localInputString, style, provider)).ToString();
                         break;
@@ -1019,6 +1048,18 @@ namespace RuriLib
                 count++;
             }
             return count;
+        }
+        #endregion
+
+        #region RandomString
+        private string ReplaceFirst(string text, string search, string replace)
+        {
+            int pos = text.IndexOf(search);
+            if (pos < 0)
+            {
+                return text;
+            }
+            return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
         #endregion
 

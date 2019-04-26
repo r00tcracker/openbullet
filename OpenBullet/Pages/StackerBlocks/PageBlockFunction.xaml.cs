@@ -115,13 +115,14 @@ namespace OpenBullet.Pages.StackerBlocks
             { "Constant", "This will just return anything written in the input string and store it in a variable, after possibly replacing all the input variables.\nUse this to chain constants and variables together." },
             { "Hash", "The input string will be hashed with the selected function. Remember you can chain variables if you need a salt." },
             { "HMAC", "" },
+            { "RandomString", "?l = Lowercase, ?u = Uppercase, ?d = Digit, ?s = Symbol, ?h = Hex (Lowercase), ?a = Any"},
             { "Translate", "Format like headers (this: that), one per line." },
             { "Compute", "Calculates the value of a math expression, for example (6+3)*5 will return 45." },
             { "RSA", "Thanks to TheLittleTrain17 for this implementation" },
             { "Delay", "Write the amount of MILLISECONDS you want to wait in the input field" },
             { "CharAt", "Returns the character at the specified index of the string in the input field" },
-            { "AESEncrypt", "Using SHA256, the most commonly used along with AES" },
-            { "AESDecrypt", "Using SHA256, the most commonly used along with AES" }
+            { "AESEncrypt", "256-bit key" },
+            { "AESDecrypt", "256-bit key" }
         };
 
         private void dictionaryRTB_TextChanged(object sender, TextChangedEventArgs e)
