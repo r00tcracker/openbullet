@@ -34,8 +34,6 @@ namespace OpenBullet
         {
             InitializeComponent();
             DataContext = vm;
-
-            vm.RefreshList();
         }
 
         public bool CheckSaved()
@@ -67,14 +65,14 @@ namespace OpenBullet
             // Create new instance of stacker
             Current = (ConfigViewModel)configsListView.SelectedItem; // Set Current Config
 
-            if (Current.Remote)
-            {
-                Globals.LogError(Components.ConfigManager, "The config was pulled from a remote source and cannot be edited!", true);
-                return;
-            }
-
             if (Current != null)
             {
+                if (Current.Remote)
+                {
+                    Globals.LogError(Components.ConfigManager, "The config was pulled from a remote source and cannot be edited!", true);
+                    return;
+                }
+
                 Globals.LogInfo(Components.ConfigManager, "Loading config: " + Current.Name);
 
                 Globals.mainWindow.ConfigsPage.menuOptionStacker.IsEnabled = true;
@@ -160,11 +158,23 @@ namespace OpenBullet
             SaveState();
 
             Globals.LogInfo(Components.ConfigManager, "Refreshing the list");
-            vm.RefreshList();
+            // vm.RefreshList();
         }
         
         private void deleteConfigsButton_Click(object sender, RoutedEventArgs e)
         {
+            if (Current == null)
+            {
+                Globals.LogError(Components.ConfigManager, "No config selected!", true);
+                return;
+            }
+
+            if (Current.Remote)
+            {
+                Globals.LogError(Components.ConfigManager, "The config was pulled from a remote source and cannot be saved!", true);
+                return;
+            }
+
             Globals.LogWarning(Components.ConfigManager, "Deletion initiated, prompting warning");
             if (MessageBox.Show("This will delete the physical files from your disk! Are you sure you want to continue?", "WARNING", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
@@ -178,7 +188,7 @@ namespace OpenBullet
                 }
 
                 Globals.LogInfo(Components.ConfigManager, $"Deleted {configsListView.SelectedItems.Count} configs");
-                vm.RefreshList();
+                vm.RefreshList(false);
             }
             else
             {
@@ -188,7 +198,7 @@ namespace OpenBullet
 
         private void rescanConfigsButton_Click(object sender, RoutedEventArgs e)
         {
-            vm.RefreshList();
+            vm.RefreshList(true);
         }
 
         private void newConfigButton_Click(object sender, RoutedEventArgs e)
@@ -240,7 +250,7 @@ namespace OpenBullet
             // Save to disk
             saveConfigButton_Click(this, null);
 
-            vm.RefreshList();
+            vm.RefreshList(false);
 
             // Create new instance of stacker
             Globals.mainWindow.ConfigsPage.StackerPage = new Stacker(Current);
@@ -276,7 +286,7 @@ namespace OpenBullet
         {
             vm.SearchString = filterTextbox.Text;
             if(vm.SearchString == "")
-                vm.RefreshList();
+                vm.RefreshList(false);
         }
 
         private void filterTextbox_KeyDown(object sender, KeyEventArgs e)

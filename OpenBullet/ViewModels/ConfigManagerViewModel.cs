@@ -1,6 +1,8 @@
-﻿using OpenBullet.Models;
+﻿using Extreme.Net;
+using OpenBullet.Models;
 using RuriLib;
 using RuriLib.ViewModels;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -8,11 +10,15 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Text;
+using System.Windows;
 
 namespace OpenBullet.ViewModels
 {
     public class ConfigManagerViewModel : ViewModelBase
     {
+        private List<ConfigViewModel> cachedConfigs = new List<ConfigViewModel>();
+
         private ObservableCollection<ConfigViewModel> configsList;
         public ObservableCollection<ConfigViewModel> ConfigsList {
             get {
@@ -37,7 +43,7 @@ namespace OpenBullet.ViewModels
         public ConfigManagerViewModel()
         {
             configsList = new ObservableCollection<ConfigViewModel>();            
-            RefreshList();
+            RefreshList(true);
         }
 
         public bool NameTaken(string name)
@@ -50,13 +56,23 @@ namespace OpenBullet.ViewModels
             OnPropertyChanged("CurrentConfigName");
         }
 
-        public void RefreshList()
+        public void RefreshList(bool pullSources)
         {
             // Scan the directory and the sources for configs
-            ConfigsList = new ObservableCollection<ConfigViewModel>(
+            if (pullSources)
+            {
+                ConfigsList = new ObservableCollection<ConfigViewModel>(
                 GetConfigsFromSources()
                 .Concat(GetConfigsFromDisk(true))
                 );
+            }
+            else
+            {
+                ConfigsList = new ObservableCollection<ConfigViewModel>(
+                cachedConfigs
+                .Concat(GetConfigsFromDisk(true))
+                );
+            }
 
             OnPropertyChanged("Total");
         }
@@ -89,29 +105,46 @@ namespace OpenBullet.ViewModels
         public List<ConfigViewModel> GetConfigsFromSources()
         {
             var list = new List<ConfigViewModel>();
+            cachedConfigs = new List<ConfigViewModel>();
 
             foreach(var source in Globals.obSettings.Sources.Sources)
             {
+                WebClient wc = new WebClient();
+                switch (source.Auth)
+                {
+                    case Source.AuthMode.ApiKey:
+                        wc.Headers.Add(HttpRequestHeader.Authorization, source.ApiKey);
+                        break;
+
+                    case Source.AuthMode.UserPass:
+                        var header = BlockFunction.Base64Encode($"{source.Username}:{source.Password}");
+                        wc.Headers.Add(HttpRequestHeader.Authorization, $"Basic {header}");
+                        break;
+
+                    default:
+                        break;
+                }
+
+                byte[] file = new byte[] { };
                 try
                 {
-                    WebClient wc = new WebClient();
-                    switch (source.Auth)
-                    {
-                        case Source.AuthMode.ApiKey:
-                            wc.Headers.Add(HttpRequestHeader.Authorization, source.ApiKey);
-                            break;
+                    file = wc.DownloadData(source.ApiUrl);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not contact API {source.ApiUrl}\r\nReason: {ex.Message}");
+                    continue;
+                }
 
-                        case Source.AuthMode.UserPass:
-                            var header = BlockFunction.Base64Encode($"{source.Username}:{source.Password}");
-                            wc.Headers.Add(HttpRequestHeader.Authorization, $"Basic {header}");
-                            break;
+                var status = wc.ResponseHeaders["Result"];
+                if (status != null && status == "Error")
+                {
+                    MessageBox.Show($"Error from API {source.ApiUrl}\r\nThe server says: {Encoding.ASCII.GetString(file)}");
+                    continue;
+                }
 
-                        default:
-                            break;
-                    }
-
-                    var file = wc.DownloadData(source.ApiUrl);
-
+                try
+                {
                     using (var zip = new ZipArchive(new MemoryStream(file), ZipArchiveMode.Read))
                     {
                         foreach (var entry in zip.Entries)
@@ -123,6 +156,7 @@ namespace OpenBullet.ViewModels
                                     var text = tr.ReadToEnd();
                                     var cfg = IOManager.DeserializeConfig(text);
                                     list.Add(new ConfigViewModel("", "Remote", cfg, true));
+                                    cachedConfigs.Add(new ConfigViewModel("", "Remote", cfg, true));
                                 }
                             }
                         }
