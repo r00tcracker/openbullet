@@ -421,7 +421,7 @@ namespace RuriLib.Runner
                 // Check if it's valid
                 if (!c.IsValid || !c.RespectsRules(Config.Settings.DataRules.ToList()))
                 {
-                    FailedList.Add(new ValidData(data, "", BotStatus.FAIL, "", "", null));
+                    FailedList.Add(new ValidData(data, "", ProxyType.Http, BotStatus.FAIL, "", "", null));
                     continue;
                 }
 
@@ -659,7 +659,8 @@ namespace RuriLib.Runner
                    ================= */
 
                 // Print the start message
-                BotLog.Add(new LogEntry(string.Format("===== LOG FOR BOT #{0} WITH DATA {1} AND PROXY {2} =====" + Environment.NewLine, bot.Id, botData.Data.Data, botData.Proxy == null ? "NONE" : botData.Proxy.Proxy), Colors.White));
+                var proxyUsedText = botData.Proxy == null ? "NONE" : $"{botData.Proxy.Proxy} ({botData.Proxy.Type})";
+                BotLog.Add(new LogEntry($"===== LOG FOR BOT #{bot.Id} WITH DATA {botData.Data.Data} AND PROXY {proxyUsedText} ====={Environment.NewLine}", Colors.White));
                 if (!Settings.General.EnableBotLog) BotLog.Add(new LogEntry("The Bot Logging is disabled in General Settings", Colors.Tomato));
 
                 // Open browser if Always Open
@@ -688,14 +689,14 @@ namespace RuriLib.Runner
                     {
                         if (Settings.General.BotsDisplayMode == BotsDisplayMode.Everything)
                             bot.Status = $"<<< ERROR IN BLOCK: {loli.CurrentBlock} >>>";
-                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{bot.Proxy}] ERROR in block {loli.CurrentBlock} | Exception: {ex.Message}", false);
+                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{proxyUsedText}] ERROR in block {loli.CurrentBlock} | Exception: {ex.Message}", false);
                         Thread.Sleep(1000);
                     }
                     catch (Exception ex)
                     {
                         if (Settings.General.BotsDisplayMode == BotsDisplayMode.Everything)
                             bot.Status = "<<< SCRIPT ERROR >>>";
-                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{bot.Proxy}] ERROR in the script | Exception: {ex.Message}", false);
+                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{proxyUsedText}] ERROR in the script | Exception: {ex.Message}", false);
                         Thread.Sleep(1000);
                     }
 
@@ -713,7 +714,7 @@ namespace RuriLib.Runner
                 if (Settings.General.BotsDisplayMode != BotsDisplayMode.None)
                     bot.Status = $"<<< FINISHED WITH RESULT: {botData.StatusString} >>>";
 
-                RaiseMessageArrived(LogLevel.Info, $"[{bot.Id}][{bot.Data}][{bot.Proxy}] Ended with result {botData.StatusString}", false);
+                RaiseMessageArrived(LogLevel.Info, $"[{bot.Id}][{bot.Data}][{proxyUsedText}] Ended with result {botData.StatusString}", false);
 
                 // Quit Browser if Always Quit
                 if (Config.Settings.AlwaysQuit)
@@ -754,7 +755,7 @@ namespace RuriLib.Runner
                 switch (botData.Status)
                 {
                     case BotStatus.SUCCESS:
-                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
+                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Proxy == null ? ProxyType.Http : botData.Proxy.Type, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
                         RaiseDispatchAction(new Action(() => HitsList.Add(validData)));
                         if (UseProxies && !Settings.Proxies.NeverBan && Settings.Proxies.BanAfterGoodStatus)
                         {
@@ -766,12 +767,12 @@ namespace RuriLib.Runner
                         break;
 
                     case BotStatus.FAIL:
-                        FailedList.Add(new ValidData("", botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Status, "", "", null));
+                        FailedList.Add(new ValidData("", "", ProxyType.Http, botData.Status, "", "", null)); // Only needed for CPM calculation so we can set blank data to avoid filling RAM
                         break;
 
                     case BotStatus.CUSTOM:
                         hitType = botData.CustomStatus;
-                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
+                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Proxy == null ? ProxyType.Http : botData.Proxy.Type, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
                         RaiseDispatchAction(new Action(() => CustomList.Add(validData)));
 
                         if (UseProxies && !Settings.Proxies.NeverBan && Settings.Proxies.BanAfterGoodStatus)
@@ -803,7 +804,7 @@ namespace RuriLib.Runner
                         goto GETPROXY;
 
                     case BotStatus.NONE:
-                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
+                        validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Proxy == null ? ProxyType.Http : botData.Proxy.Type, botData.Status, capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
                         RaiseDispatchAction(new Action(() => ToCheckList.Add(validData)));
 
                         if (UseProxies && !Settings.Proxies.NeverBan && Settings.Proxies.BanAfterGoodStatus)

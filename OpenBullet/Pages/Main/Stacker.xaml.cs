@@ -355,7 +355,8 @@ namespace OpenBullet
             Globals.LogInfo(Components.Stacker, "Setting the first block as the current block");
 
             // Print start line
-            vm.BotData.LogBuffer.Add(new LogEntry(string.Format("===== DEBUGGER STARTED FOR CONFIG {0} WITH DATA {1} AND PROXY {2} ({3}) ====="+Environment.NewLine, vm.Config.Name, vm.TestData, vm.TestProxy, vm.UseProxy ? "ENABLED" : "DISABLED"), Colors.White));
+            var proxyEnabledText = vm.UseProxy ? "ENABLED" : "DISABLED";
+            vm.BotData.LogBuffer.Add(new LogEntry($"===== DEBUGGER STARTED FOR CONFIG {vm.Config.Name} WITH DATA {vm.TestData} AND PROXY {vm.TestProxy} ({vm.ProxyType}) {proxyEnabledText} ====={Environment.NewLine}", Colors.White));
             startTime = DateTime.Now;
 
             // Open browser if Always Open
@@ -587,10 +588,20 @@ namespace OpenBullet
 
         private void previousMatchButton_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (vm.CurrentSearchMatch == 1 || vm.TotalSearchMatches == 0)
+            if (vm.TotalSearchMatches == 0) // If no matches, do nothing
+            {
                 return;
-
-            vm.CurrentSearchMatch--;
+            }
+                
+            if (vm.CurrentSearchMatch == 1) // If we need to loop around
+            {
+                vm.CurrentSearchMatch = vm.Indexes.Count;
+            }
+            else
+            {
+                vm.CurrentSearchMatch--;
+            }
+            
             logRTB.DeselectAll();
             logRTB.Select(vm.Indexes[vm.CurrentSearchMatch - 1], 0);
             logRTB.ScrollToCaret();
@@ -598,10 +609,20 @@ namespace OpenBullet
         
         private void nextMatchButton_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (vm.CurrentSearchMatch == vm.Indexes.Count || vm.TotalSearchMatches == 0)
+            if (vm.TotalSearchMatches == 0) // If no matches, do nothing
+            {
                 return;
+            }
 
-            vm.CurrentSearchMatch++;
+            if (vm.CurrentSearchMatch == vm.Indexes.Count) // If we need to loop around
+            {
+                vm.CurrentSearchMatch = 1;
+            }
+            else
+            {
+                vm.CurrentSearchMatch++;
+            }
+
             logRTB.DeselectAll();
             logRTB.Select(vm.Indexes[vm.CurrentSearchMatch - 1], 0);
             logRTB.ScrollToCaret();
