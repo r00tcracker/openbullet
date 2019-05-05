@@ -211,6 +211,14 @@ namespace RuriLib
                             break;
 
                         case CVar.VarType.List:
+
+                            // If it's just the list name, replace it with its string representation
+                            if (string.IsNullOrEmpty(args))
+                            {
+                                output = output.Replace(full, v.ToString());
+                                break;
+                            }
+
                             var index = 0;
                             int.TryParse(ParseArguments(args, '[', ']')[0], out index);
                             var item = v.GetListItem(index); // Can return null
@@ -218,6 +226,7 @@ namespace RuriLib
                             break;
 
                         case CVar.VarType.Dictionary:
+                            
                             if (args.Contains("(") && args.Contains(")"))
                             {
                                 var dicKey = ParseArguments(args, '(', ')')[0];
@@ -227,6 +236,11 @@ namespace RuriLib
                             {
                                 var dicVal = ParseArguments(args, '{', '}')[0];
                                 try { output = output.Replace(full, v.GetDictKey(dicVal)); } catch { }
+                            }
+                            else // If it's just the dictionary name, replace it with its string representation
+                            {
+                                output = output.Replace(full, v.ToString());
+                                break;
                             }
                             break;
                     }
@@ -275,7 +289,9 @@ namespace RuriLib
         /// <param name="suffix">The string to add at the end of the value</param>
         public static void InsertVariables(BotData data, bool isCapture, bool recursive, List<string> values, string variableName, string prefix, string suffix)
         {
-            var list = values.Select(v => ReplaceValues(prefix, data) + v.Trim() + ReplaceValues(suffix, data));
+            var list = values
+                .Where(v => !string.IsNullOrEmpty(v)) // Remove the empty entries, e.g. the one added by default by the Parse Block
+                .Select(v => ReplaceValues(prefix, data) + v.Trim() + ReplaceValues(suffix, data));
             CVar variable;
             if (recursive) variable = new CVar(variableName, list.ToList(), isCapture);
             else variable = new CVar(variableName, list.First(), isCapture);
