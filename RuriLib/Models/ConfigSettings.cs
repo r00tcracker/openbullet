@@ -21,6 +21,10 @@ namespace RuriLib
         /// <summary>The suggested amount of Bots that should be used with the config.</summary>
         public int SuggestedBots { get { return suggestedBots; } set { suggestedBots = value; OnPropertyChanged(); } }
 
+        private int maxCPM = 0;
+        /// <summary>The maximum CPM around which the Master Worker will stop starting bots and wait for the CPM to decrease below the threshold.</summary>
+        public int MaxCPM { get { return maxCPM; } set { maxCPM = value; OnPropertyChanged(); } }
+
         private DateTime lastModified = DateTime.Now;
         /// <summary>When the Config was last modified.</summary>
         public DateTime LastModified { get { return lastModified; } set { lastModified = value; OnPropertyChanged(); } }
@@ -33,7 +37,7 @@ namespace RuriLib
         /// <summary>The name of the Author of the Config.</summary>
         public string Author { get { return author; } set { author = value; OnPropertyChanged(); } }
 
-        private string version = "1.1.1";
+        private string version = "1.1.2";
         /// <summary>The version of RuriLib the Config was made with.</summary>
         public string Version { get { return version; } set { version = value; OnPropertyChanged(); } }
         #endregion
@@ -42,6 +46,10 @@ namespace RuriLib
         private bool ignoreResponseErrors = false;
         /// <summary>Whether to proceed if an HTTP request fails instead of giving the ERROR status.</summary>
         public bool IgnoreResponseErrors { get { return ignoreResponseErrors; } set { ignoreResponseErrors = value; OnPropertyChanged(); } }
+
+        private int _maxRedirects = 8;
+        /// <summary>The maximum amount of times we can be redirected to different URLs for a single request.</summary>
+        public int MaxRedirects { get { return _maxRedirects; } set { _maxRedirects = value; OnPropertyChanged(); } }
         #endregion
 
         #region Proxy
@@ -63,6 +71,10 @@ namespace RuriLib
         #endregion
 
         #region Data
+        private bool encodeData = false;
+        /// <summary>Whether the data should be URLencoded after being sliced.</summary>
+        public bool EncodeData { get { return encodeData; } set { encodeData = value; OnPropertyChanged(); } }
+
         private string allowedWordlist1 = "";
         /// <summary>The name of the first allowed WordlistType.</summary>
         public string AllowedWordlist1 { get { return allowedWordlist1; } set { allowedWordlist1 = value; OnPropertyChanged(); } }
