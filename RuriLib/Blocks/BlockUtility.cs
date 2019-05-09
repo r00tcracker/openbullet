@@ -3,6 +3,7 @@ using RuriLib.Models;
 using RuriLib.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -51,6 +52,9 @@ namespace RuriLib
 
         /// <summary>Joins a list into a single string, separating the elements with a separator.</summary>
         Join,
+
+        /// <summary>Sorts a list alphabetically, in ascending or descending order.</summary>
+        Sort,
 
         /// <summary>Concatenates two lists into a longer list variable.</summary>
         Concat,
@@ -146,6 +150,14 @@ namespace RuriLib
         /// <summary>The separator for joining a list.</summary>
         public string Separator { get { return separator; } set { separator = value; OnPropertyChanged(); } }
 
+        private bool ascending = true;
+        /// <summary>Whether the sort should happen in ascending order.</summary>
+        public bool Ascending { get { return ascending; } set { ascending = value; OnPropertyChanged(); } }
+
+        private bool numeric = false;
+        /// <summary>Whether a list is made of numeric values.</summary>
+        public bool Numeric { get { return numeric; } set { numeric = value; OnPropertyChanged(); } }
+
         private string secondListName = ""; // Zip
         /// <summary>The name of the second list variable.</summary>
         public string SecondListName { get { return secondListName; } set { secondListName = value; OnPropertyChanged(); } }
@@ -227,6 +239,11 @@ namespace RuriLib
                             Separator = LineParser.ParseLiteral(ref input, "Separator");
                             break;
 
+                        case ListAction.Sort:
+                            while (LineParser.Lookahead(ref input) == TokenType.Boolean)
+                                LineParser.SetBool(ref input, this);
+                            break;
+
                         case ListAction.Concat:
                         case ListAction.Zip:
                         case ListAction.Map:
@@ -251,7 +268,7 @@ namespace RuriLib
                     switch (VarAction)
                     {
                         case VarAction.Split:
-                            SplitSeparator = LineParser.ParseLiteral(ref input, "Separator");
+                            SplitSeparator = LineParser.ParseLiteral(ref input, "SplitSeparator");
                             break;
                     }
                     break;
@@ -319,6 +336,12 @@ namespace RuriLib
                         case ListAction.Join:
                             writer
                                 .Literal(Separator);
+                            break;
+
+                        case ListAction.Sort:
+                            writer
+                                .Boolean(Ascending, "Ascending")
+                                .Boolean(Numeric, "Numeric");
                             break;
 
                         case ListAction.Concat:
@@ -420,6 +443,22 @@ namespace RuriLib
                                 data.Variables.Set(new CVar(variableName, string.Join(separator, list), isCapture));
                                 break;
 
+                            case ListAction.Sort:
+                                var sorted = list.Select(e => e).ToList(); // Clone the list so we don't edit the original one
+                                if (Numeric)
+                                {
+                                    var nums = sorted.Select(e => double.Parse(e, CultureInfo.InvariantCulture)).ToList();
+                                    nums.Sort();
+                                    sorted = nums.Select(e => e.ToString()).ToList();
+                                }
+                                else
+                                {
+                                    sorted.Sort();
+                                }                                
+                                if (!Ascending) sorted.Reverse();
+                                data.Variables.Set(new CVar(variableName, sorted, isCapture));
+                                break;
+
                             case ListAction.Concat:
                                 data.Variables.Set(new CVar(variableName, list.Concat(list2).ToList(), isCapture));
                                 break;
@@ -467,7 +506,7 @@ namespace RuriLib
                         {
                             case VarAction.Split:
                                 single = data.Variables.GetSingle(varName);
-                                data.Variables.Set(new CVar(variableName, single.Split(new string[] { ReplaceValues(separator, data) }, StringSplitOptions.None).ToList(), isCapture));
+                                data.Variables.Set(new CVar(variableName, single.Split(new string[] { ReplaceValues(splitSeparator, data) }, StringSplitOptions.None).ToList(), isCapture));
                                 break;
                         }
                         data.Log(new LogEntry(string.Format("Executed action {0} on variable {1}", varAction, varName), Colors.White));
