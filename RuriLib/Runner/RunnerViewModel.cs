@@ -582,6 +582,7 @@ namespace RuriLib.Runner
             // Get a reference to the Worker that is executing the job and the corresponding Bot
             var senderABW = (AbortableBackgroundWorker)sender;
             var bot = Bots.First(b => b.Id == (senderABW.Id));
+            bot.Status = "INITIALIZING...";
 
             // The data line that needs to be processed
             var data = (string)e.Argument;
@@ -703,7 +704,7 @@ namespace RuriLib.Runner
 
                     // Output the label of the current block being processed
                     if (Settings.General.BotsDisplayMode == BotsDisplayMode.Everything)
-                        bot.Status = "<<< PROCESSING BLOCK: " + loli.CurrentBlock + " >>>";
+                        bot.Status = "<<< PROCESSING BLOCK: " + loli.NextBlock + " >>>";
 
                     // Try to take a step in the LoliScript and output any errors
                     try
@@ -713,8 +714,8 @@ namespace RuriLib.Runner
                     catch (BlockProcessingException ex)
                     {
                         if (Settings.General.BotsDisplayMode == BotsDisplayMode.Everything)
-                            bot.Status = $"<<< ERROR IN BLOCK: {loli.CurrentBlock} >>>";
-                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{proxyUsedText}] ERROR in block {loli.CurrentBlock} | Exception: {ex.Message}", false);
+                            bot.Status = $"<<< ERROR IN BLOCK: {loli.NextBlock} >>>";
+                        RaiseMessageArrived(LogLevel.Error, $"[{bot.Id}][{bot.Data}][{proxyUsedText}] ERROR in block {loli.NextBlock} | Exception: {ex.Message}", false);
                         Thread.Sleep(1000);
                     }
                     catch (Exception ex)
