@@ -111,6 +111,10 @@ namespace RuriLib
         /// <summary>Whether to URL encode the content before sending it.</summary>
         public bool EncodeContent { get { return encodeContent; } set { encodeContent = value; OnPropertyChanged(); } }
 
+        private bool acceptEncoding = true;
+        /// <summary>Whether to automatically generate an Accept-Encoding header.</summary>
+        public bool AcceptEncoding { get { return acceptEncoding; } set { acceptEncoding = value; OnPropertyChanged(); } }
+
         // Multipart
         private string multipartBoundary = "";
         /// <summary>The boundary that separates multipart contents.</summary>
@@ -176,15 +180,13 @@ namespace RuriLib
                         break;
 
                     case "STRINGCONTENT":
-                        var sCont = LineParser.ParseLiteral(ref input, "STRING CONTENT");
-                        var sSplit = sCont.Split(new char[] { ':' }, 2);
-                        MultipartContents.Add(new MultipartContent() { Type = MultipartContentType.String, Name = sSplit[0].Trim(), Value = sSplit[1].Trim() });
+                        var stringContentPair = ParsePair(LineParser.ParseLiteral(ref input, "STRING CONTENT"));
+                        MultipartContents.Add(new MultipartContent() { Type = MultipartContentType.String, Name = stringContentPair.Key, Value = stringContentPair.Value });
                         break;
 
                     case "FILECONTENT":
-                        var fCont = LineParser.ParseLiteral(ref input, "FILE CONTENT");
-                        var fSplit = fCont.Split(new char[] { ':' }, 2);
-                        MultipartContents.Add(new MultipartContent() { Type = MultipartContentType.File, Name = fSplit[0].Trim(), Value = fSplit[1].Trim() });
+                        var fileContentPair = ParsePair(LineParser.ParseLiteral(ref input, "FILE CONTENT"));
+                        MultipartContents.Add(new MultipartContent() { Type = MultipartContentType.File, Name = fileContentPair.Key, Value = fileContentPair.Value });
                         break;
 
                     case "COOKIE":
@@ -253,6 +255,7 @@ namespace RuriLib
                 .Token("REQUEST")
                 .Token(Method)
                 .Literal(Url)
+                .Boolean(AcceptEncoding, "AcceptEncoding")
                 .Boolean(AutoRedirect, "AutoRedirect")
                 .Boolean(ReadResponseSource, "ReadResponseSource")
                 .Boolean(ParseQuery, "ParseQuery")
@@ -346,7 +349,7 @@ namespace RuriLib
             var timeout = data.GlobalSettings.General.RequestTimeout * 1000;
             request.IgnoreProtocolErrors = true;
             request.AllowAutoRedirect = autoRedirect;
-            request.EnableEncodingContent = true;
+            request.EnableEncodingContent = acceptEncoding;
             request.ReadWriteTimeout = timeout;
             request.ConnectTimeout = timeout;
             request.KeepAlive = true;
@@ -391,7 +394,7 @@ namespace RuriLib
                     var pData = string.Join(Environment.NewLine, postData
                         .Split(new string[] { "\\n" }, StringSplitOptions.None)
                         .Select(p => ReplaceValues(p, data)));
-                    if (pData != "")
+                    if (CanContainBody(method))
                     {
                         if (encodeContent)
                         {
@@ -403,18 +406,32 @@ namespace RuriLib
 
                         content = new StringContent(pData);
                         content.ContentType = cType;
-                        data.Log(new LogEntry(string.Format("Post Data: {0}", pData), Colors.MediumTurquoise));
+                        data.Log(new LogEntry($"Post Data: {pData}", Colors.MediumTurquoise));
                     }
                     break;
 
                 case RequestType.Multipart:
-                    if (multipartBoundary != "") content = new Extreme.Net.MultipartContent(multipartBoundary);
-                    else content = new Extreme.Net.MultipartContent(GenerateMultipartBoundary());
+                    var bdry = multipartBoundary != "" ? multipartBoundary : GenerateMultipartBoundary();
+                    content = new Extreme.Net.MultipartContent(bdry);
                     var mContent = content as Extreme.Net.MultipartContent;
+                    data.Log(new LogEntry($"Content-Type: multipart/form-data; boundary={bdry}", Colors.MediumTurquoise));
+                    data.Log(new LogEntry("Multipart Data:", Colors.MediumTurquoise));
+                    data.Log(new LogEntry(bdry, Colors.MediumTurquoise));
                     foreach (var c in MultipartContents)
                     {
-                        if (c.Type == MultipartContentType.String) mContent.Add(new StringContent(ReplaceValues(c.Value, data)), ReplaceValues(c.Name, data));
-                        else if (c.Type == MultipartContentType.File) mContent.Add(new FileContent(ReplaceValues(c.Value, data)), ReplaceValues(c.Name, data));
+                        var rValue = ReplaceValues(c.Value, data);
+                        var rName = ReplaceValues(c.Name, data);
+                        if (c.Type == MultipartContentType.String)
+                        {
+                            mContent.Add(new StringContent(rValue), rName);
+                            data.Log(new LogEntry($"Content-Disposition: form-data; name=\"{rName}\"{Environment.NewLine}{Environment.NewLine}{rValue}", Colors.MediumTurquoise));
+                        }
+                        else if (c.Type == MultipartContentType.File)
+                        {
+                            mContent.Add(new FileContent(rValue), rName);
+                            data.Log(new LogEntry($"Content-Disposition: form-data; name=\"{rName}\"{Environment.NewLine}{Environment.NewLine}[FILE CONTENT OMITTED]", Colors.MediumTurquoise));
+                        }
+                        data.Log(new LogEntry(bdry, Colors.MediumTurquoise));
                     }
                     break;
 
@@ -439,7 +456,7 @@ namespace RuriLib
 
             // Set headers
             data.Log(new LogEntry("Sent Headers:", Colors.DarkTurquoise));
-            var fixedNames = Enum.GetNames(typeof(HttpHeader)).Select(n => n.ToLower());
+            // var fixedNames = Enum.GetNames(typeof(HttpHeader)).Select(n => n.ToLower());
             foreach (var header in CustomHeaders)
             {
                 try
@@ -448,8 +465,9 @@ namespace RuriLib
                     var replacedKey = key.Replace("-", "").ToLower(); // Used to compare with the HttpHeader enum
                     var val = ReplaceValues(header.Value, data);
 
-                    if (replacedKey == "contenttype") { } // Disregard additional Content-Type headers
-                    else if (fixedNames.Contains(replacedKey)) request.AddHeader((HttpHeader)Enum.Parse(typeof(HttpHeader), replacedKey, true), val);
+                    if (replacedKey == "contenttype" && content != null) { continue; } // Disregard additional Content-Type headers
+                    if (replacedKey == "acceptencoding" && acceptEncoding) { continue; } // Disregard additional Accept-Encoding headers
+                    // else if (fixedNames.Contains(replacedKey)) request.AddHeader((HttpHeader)Enum.Parse(typeof(HttpHeader), replacedKey, true), val);
                     else request.AddHeader(key, val);
 
                     data.Log(new LogEntry(key + ": " + val, Colors.MediumTurquoise));
@@ -468,8 +486,10 @@ namespace RuriLib
             }
 
             // Add the content-type header
-            if ((method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.DELETE) && cType != "")
+            if (CanContainBody(method) && content != null && requestType == RequestType.Standard)
+            {
                 data.Log(new LogEntry("Content-Type: " + cType, Colors.MediumTurquoise));
+            }
 
             // Add new user-defined custom cookies to the bot's cookie jar
             request.Cookies = new CookieDictionary();
@@ -684,6 +704,11 @@ namespace RuriLib
                 builder.Append(ch);
             }
             return $"------WebKitFormBoundary{builder.ToString().ToLower()}";
+        }
+
+        private static bool CanContainBody(HttpMethod method)
+        {
+            return method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.DELETE;
         }
     }
 
