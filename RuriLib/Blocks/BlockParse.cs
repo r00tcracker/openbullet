@@ -1,4 +1,4 @@
-﻿using AngleSharp.Parser.Html;
+﻿using AngleSharp.Html.Parser;
 using Extreme.Net;
 using Newtonsoft.Json.Linq;
 using RuriLib.LS;
@@ -373,8 +373,8 @@ namespace RuriLib
                 case ParseType.CSS:
 
                     HtmlParser parser = new HtmlParser();
-                    AngleSharp.Dom.Html.IHtmlDocument document = null;
-                    try { document = parser.Parse(original); } catch {  }
+                    AngleSharp.Html.Dom.IHtmlDocument document = null;
+                    try { document = parser.ParseDocument(original); } catch {  }
 
                     try
                     {
@@ -435,10 +435,20 @@ namespace RuriLib
                 case ParseType.JSON:
                     if (JTokenParsing)
                     {
-                        JObject json = JObject.Parse(original);
-                        var jsonlist = json.SelectTokens(jsonField, false);
-                        foreach (var j in jsonlist)
-                            list.Add(j.ToString());
+                        if (original.Trim().StartsWith("["))
+                        {
+                            JArray json = JArray.Parse(original);
+                            var jsonlist = json.SelectTokens(jsonField, false);
+                            foreach (var j in jsonlist)
+                                list.Add(j.ToString());
+                        }
+                        else
+                        {
+                            JObject json = JObject.Parse(original);
+                            var jsonlist = json.SelectTokens(jsonField, false);
+                            foreach (var j in jsonlist)
+                                list.Add(j.ToString());
+                        }
                     }
                     else
                     {

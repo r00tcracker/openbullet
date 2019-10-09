@@ -1,4 +1,5 @@
 ﻿using Extreme.Net;
+using Newtonsoft.Json;
 using RuriLib.LS;
 using RuriLib.Models;
 using RuriLib.ViewModels;
@@ -40,10 +41,12 @@ namespace RuriLib.Runner
         /// </summary>
         /// <param name="environment">The environment settings</param>
         /// <param name="settings">The RuriLib settings</param>
-        public RunnerViewModel(EnvironmentSettings environment, RLSettingsViewModel settings)
+        /// <param name="random">A reference to the global random generator</param>
+        public RunnerViewModel(EnvironmentSettings environment, RLSettingsViewModel settings, Random random)
         {
             Env = environment;
             Settings = settings;
+            Random = random;
             OnPropertyChanged("Busy");
             OnPropertyChanged("ControlsEnabled");
         }
@@ -52,6 +55,7 @@ namespace RuriLib.Runner
         #region Settings
         private RLSettingsViewModel Settings { get; set; }
         private EnvironmentSettings Env { get; set; }
+        private Random Random { get; set; }
         #endregion
 
         #region Workers
@@ -378,7 +382,7 @@ namespace RuriLib.Runner
             if (Config == null) throw new Exception("No Config loaded!");
             if (Wordlist == null) throw new Exception("No Wordlist loaded!");
 
-            DataPool = new DataPool(File.ReadLines(Wordlist.Path));
+            if (!Wordlist.Temporary) DataPool = new DataPool(File.ReadLines(Wordlist.Path));
             RaiseMessageArrived(LogLevel.Info, $"Loaded {DataPool.Size} lines", false);
             RaiseMessageArrived(LogLevel.Info, $"Using Proxies: {UseProxies}", false);
 
@@ -520,11 +524,21 @@ namespace RuriLib.Runner
                         return;
                     }
 
-                    // Write progress to DB every 2 minutes
-                    // Useful if we cannot save it upon work completion (e.g. for a crash or power outage)
-                    if (Timer.IsRunning && (int)Timer.Elapsed.TotalSeconds != 0 && (int)Timer.Elapsed.TotalSeconds % 120 == 0)
+                    // Periodic actions
+                    if (Timer.IsRunning && (int)Timer.Elapsed.TotalSeconds != 0)
                     {
-                        RaiseSaveProgress();
+                        // Write progress to DB every 2 minutes
+                        // Useful if we cannot save it upon work completion (e.g. for a crash or power outage)
+                        if ((int)Timer.Elapsed.TotalSeconds % 120 == 0)
+                        {
+                            RaiseSaveProgress();
+                        }
+
+                        // Reload proxies if a reload interval was set
+                        if (Settings.Proxies.ReloadInterval > 0 && (int)Timer.Elapsed.TotalSeconds % (Settings.Proxies.ReloadInterval * 60) == 0)
+                        {
+                            LoadProxies();
+                        }
                     }
 
                     // If we are above the CPM limit, go to the wait (use cpm NOT CPM so it doesn't calculate it uselessly when it checks the IF conditions)
@@ -666,7 +680,7 @@ namespace RuriLib.Runner
                 }
 
                 // Initialize the Bot Data
-                BotData botData = new BotData(Settings, Config.Settings, currentData, currentProxy, UseProxies, bot.Id, false);
+                BotData botData = new BotData(Settings, Config.Settings, currentData, currentProxy, UseProxies, Random, bot.Id, false);
                 botData.Driver = bot.Driver;
                 botData.BrowserOpen = bot.IsDriverOpen;
                 List<LogEntry> BotLog = new List<LogEntry>();
@@ -820,6 +834,7 @@ namespace RuriLib.Runner
                         break;
 
                     case BotStatus.BAN:
+                        // If the NeverBan option is true or we don't use a proxy, the BAN gets treated as a RETRY
                         if (UseProxies && !Settings.Proxies.NeverBan)
                         {
                             currentProxy.Status = Status.BANNED;
@@ -827,8 +842,18 @@ namespace RuriLib.Runner
                             RetryCount++;
                         }
 
-                        // If the NeverBan option is true or we don't use a proxy, the BAN gets treated as a RETRY
-                        goto GETPROXY;
+                        if (currentData.Retries < Settings.Proxies.MaxBans || Settings.Proxies.MaxBans == 0)
+                        {
+                            currentData.Retries++;
+                            goto GETPROXY;
+                        }
+                        else
+                        {
+                            RaiseMessageArrived(LogLevel.Warning, $"[{bot.Id}][{bot.Data}] Maximum retries exceeded");
+                            botData.Status = BotStatus.NONE;
+                            hitType = botData.Status.ToString();
+                            goto TOCHECK;
+                        }
 
                     case BotStatus.ERROR: // We assume it's a proxy error and that the Config is working correctly, so we mark the proxy as bad
                         RetryCount++;
@@ -840,6 +865,7 @@ namespace RuriLib.Runner
                         goto GETPROXY;
 
                     case BotStatus.NONE:
+                        TOCHECK:
                         validData = new ValidData(botData.Data.Data, botData.Proxy == null ? "" : botData.Proxy.Proxy, botData.Proxy == null ? ProxyType.Http : botData.Proxy.Type, botData.Status, "TOCHK", capturedData.ToCaptureString(), Settings.General.SaveLastSource ? botData.ResponseSource : "", BotLog);
                         RaiseDispatchAction(new Action(() => ToCheckList.Add(validData)));
 
@@ -857,6 +883,22 @@ namespace RuriLib.Runner
                 {
                     var hit = new Hit(data, capturedData, currentProxy == null ? "" : currentProxy.Proxy, hitType, ConfigName, WordlistName);
                     RaiseFoundHit(hit);
+                }
+
+                // Call the webhook
+                if (Settings.General.WebhookEnabled && (botData.Status == BotStatus.SUCCESS || botData.Status == BotStatus.CUSTOM))
+                {
+                    HttpRequest request = new HttpRequest();
+                    try
+                    {
+                        var toSend = new WebhookFormat(data, hitType, capturedData.ToCaptureString(), DateTime.Now, Config.Settings.Name, Config.Settings.Author, Settings.General.WebhookUser);
+                        var json = JsonConvert.SerializeObject(toSend);
+                        request.PostAsync(Settings.General.WebhookURL, json, "application/json");
+                    }
+                    catch
+                    {
+                        RaiseMessageArrived(LogLevel.Error, $"Could not register the hit to webhook {Settings.General.WebhookURL}");
+                    }
                 }
 
                 // Wait time
@@ -1021,9 +1063,10 @@ namespace RuriLib.Runner
                         {
                             proxies.AddRange(GetProxiesFromRemoteSource(s.Url, s.Type, s.Pattern, s.Output));
                         }
-                        catch (Exception ex) { RaiseMessageArrived(LogLevel.Error, $"Could not contact the reload API - {ex.Message}", true, 5); }
+                        catch (Exception ex) { RaiseMessageArrived(LogLevel.Error, $"Could not contact the reload API {s.Url} for {s.Type} proxies - {ex.Message}", true, 5); }
                     });
                     ProxyPool = new ProxyPool(proxies, Settings.Proxies.ShuffleOnStart);
+                    // ProxyPool.RemoveDuplicates();
                     break;
 
                 case ProxyReloadSource.File:
@@ -1032,8 +1075,9 @@ namespace RuriLib.Runner
                         ProxyPool = new ProxyPool(
                             GetProxiesFromFile(Settings.Proxies.ReloadPath,
                                                 Settings.Proxies.ReloadType), Settings.Proxies.ShuffleOnStart);
+                        // ProxyPool.RemoveDuplicates();
                     }
-                    catch (Exception ex) { RaiseMessageArrived(LogLevel.Error, $"Could not read the proxies from file - {ex.Message}", true); }
+                    catch (Exception ex) { RaiseMessageArrived(LogLevel.Error, $"Could not read the proxies from file {Settings.Proxies.ReloadPath} - {ex.Message}", true); }
                     break;
             }
 

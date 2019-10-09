@@ -338,7 +338,7 @@ namespace RuriLib.LS
                             {
                                 label = LineParser.ParseToken(ref cfLine, TokenType.Label, true);
                                 i = ScanFor(lines, -1, true, new string[] { $"{label}" }) - 1;
-                                data.LogBuffer.Add(new LogEntry($"Jumping to line {i + 1}", Colors.White));
+                                data.LogBuffer.Add(new LogEntry($"Jumping to line {i + 2}", Colors.White));
                             }
                             catch { throw new Exception($"No block with label {label} was found"); }
                             break;
@@ -358,7 +358,7 @@ namespace RuriLib.LS
 
                                     otherScript = string.Join(Environment.NewLine, lines.Skip(i + 1).Take(end - i));
                                     i = end;
-                                    data.LogBuffer.Add(new LogEntry($"Jumping to line {i + 1}", Colors.White));
+                                    data.LogBuffer.Add(new LogEntry($"Jumping to line {i + 2}", Colors.White));
                                     break;
                             }
                             break;
@@ -488,7 +488,23 @@ namespace RuriLib.LS
                         // Add in all the variables
                         foreach (var variable in data.Variables.All)
                         {
-                            try { jsengine.SetValue(variable.Name, variable.Value); } catch { }
+                            try
+                            {
+                                switch (variable.Type)
+                                {
+                                    case CVar.VarType.Single:
+                                        jsengine.SetValue(variable.Name, variable.Value);
+                                        break;
+
+                                    case CVar.VarType.List:
+                                        jsengine.SetValue(variable.Name, (variable.Value as List<string>).ToArray());
+                                        break;
+
+                                    default:
+                                        break;
+                                }
+                            }
+                            catch { }
                         }
 
                         // Execute JS

@@ -4,8 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Media;
 
 namespace RuriLib
@@ -130,6 +132,10 @@ namespace RuriLib
         private string downloadPath = "";
         /// <summary>The path of the file where a FILE response needs to be stored.</summary>
         public string DownloadPath { get { return downloadPath; } set { downloadPath = value; OnPropertyChanged(); } }
+
+        private bool saveAsScreenshot = false;
+        /// <summary>Whether to add the downloaded image to the default screenshot path.</summary>
+        public bool SaveAsScreenshot { get { return saveAsScreenshot; } set { saveAsScreenshot = value; OnPropertyChanged(); } }
         #endregion
 
         /// <summary>
@@ -229,6 +235,10 @@ namespace RuriLib
                 {
                     ResponseType = ResponseType.File;
                     DownloadPath = LineParser.ParseLiteral(ref input, "DOWNLOAD PATH");
+                    while (LineParser.Lookahead(ref input) == TokenType.Boolean)
+                    {
+                        LineParser.SetBool(ref input, this);
+                    }
                 }
             }
 
@@ -335,7 +345,8 @@ namespace RuriLib
                     .Indent()
                     .Arrow()
                     .Token("FILE")
-                    .Literal(DownloadPath);
+                    .Literal(DownloadPath)
+                    .Boolean(SaveAsScreenshot, "SaveAsScreenshot");
             }
 
             return writer.ToString();
@@ -350,6 +361,7 @@ namespace RuriLib
             // Set base URL
             var localUrl = ReplaceValues(url, data);
             var cType = ReplaceValues(contentType, data);
+            var oldJar = data.Cookies;
 
             // Create request
             HttpRequest request = new HttpRequest();
@@ -400,15 +412,14 @@ namespace RuriLib
             switch (requestType)
             {
                 case RequestType.Standard:
-                    var pData = string.Join(Environment.NewLine, postData
-                        .Split(new string[] { "\\n" }, StringSplitOptions.None)
-                        .Select(p => ReplaceValues(p, data)));
+                    var pData = ReplaceValues(Regex.Replace(postData, @"(?<!\\)\\n", Environment.NewLine).Replace(@"\\n", @"\n"), data);
+
                     if (CanContainBody(method))
                     {
                         if (encodeContent)
                         {
                             // Very dirty but it works
-                            var nonce = data.rand.Next(1000000, 9999999);
+                            var nonce = data.Random.Next(1000000, 9999999);
                             pData = pData.Replace("&", $"{nonce}&{nonce}").Replace("=", $"{nonce}={nonce}");
                             pData = System.Uri.EscapeDataString(pData).Replace($"{nonce}%26{nonce}", "&").Replace($"{nonce}%3D{nonce}", "=");
                         }
@@ -420,7 +431,7 @@ namespace RuriLib
                     break;
 
                 case RequestType.Multipart:
-                    var bdry = multipartBoundary != "" ? multipartBoundary : GenerateMultipartBoundary();
+                    var bdry = multipartBoundary != "" ? ReplaceValues(multipartBoundary, data) : GenerateMultipartBoundary();
                     content = new Extreme.Net.MultipartContent(bdry);
                     var mContent = content as Extreme.Net.MultipartContent;
                     data.Log(new LogEntry($"Content-Type: multipart/form-data; boundary={bdry}", Colors.MediumTurquoise));
@@ -493,13 +504,13 @@ namespace RuriLib
                 var pwd = ReplaceValues(authPass, data);
                 var auth = "Basic " + BlockFunction.Base64Encode(usr + ":" + pwd);
                 request.AddHeader("Authorization", auth);
-                data.Log(new LogEntry("Authorization: " + auth, Colors.MediumTurquoise));
+                data.Log(new LogEntry($"Authorization: {auth}", Colors.MediumTurquoise));
             }
 
             // Add the content-type header
             if (CanContainBody(method) && content != null && requestType == RequestType.Standard)
             {
-                data.Log(new LogEntry("Content-Type: " + cType, Colors.MediumTurquoise));
+                data.Log(new LogEntry($"Content-Type: {cType}", Colors.MediumTurquoise));
             }
 
             // Add new user-defined custom cookies to the bot's cookie jar
@@ -512,7 +523,7 @@ namespace RuriLib
             foreach (var cookie in data.Cookies)
             {
                 request.Cookies.Add(cookie.Key, cookie.Value);
-                data.Log(new LogEntry(cookie.Key + " : " + cookie.Value, Colors.MediumTurquoise));
+                data.Log(new LogEntry($"{cookie.Key}: {cookie.Value}", Colors.MediumTurquoise));
             }
 
             data.LogNewLine();
@@ -526,6 +537,7 @@ namespace RuriLib
             {
                 // Get response
                 response = request.Raw(method, localUrl, content);
+                var responseString = "";
 
                 // Get address
                 data.Address = response.Address.ToString();
@@ -544,7 +556,22 @@ namespace RuriLib
                 {
                     var header = receivedHeaders.Current;
                     data.ResponseHeaders.Add(header.Key, header.Value);
-                    data.Log(new LogEntry(header.Key + ": " + header.Value, Colors.LightPink));
+                    data.Log(new LogEntry($"{header.Key}: {header.Value}", Colors.LightPink));
+                }
+                if (!response.ContainsHeader(HttpHeader.ContentLength) && ResponseType != ResponseType.File)
+                {
+                    responseString = response.ToString(); // Read the stream
+
+                    if (data.ResponseHeaders.ContainsKey("Content-Encoding") && data.ResponseHeaders["Content-Encoding"].Contains("gzip"))
+                    {
+                        data.ResponseHeaders["Content-Length"] = GZip.Zip(responseString).Length.ToString();
+                    }
+                    else
+                    {
+                        data.ResponseHeaders["Content-Length"] = responseString.Length.ToString();
+                    }
+
+                    data.Log(new LogEntry($"Content-Length: {data.ResponseHeaders["Content-Length"]}", Colors.LightPink));
                 }
 
                 // Get cookies
@@ -552,7 +579,10 @@ namespace RuriLib
                 data.Cookies = response.Cookies;
                 foreach (var cookie in response.Cookies)
                 {
-                    data.Log(new LogEntry(cookie.Key + ": " + cookie.Value, Colors.LightGoldenrodYellow));
+                    // If the cookie was already present before, don't log it
+                    if (oldJar.ContainsKey(cookie.Key) && oldJar[cookie.Key] == cookie.Value) continue;
+
+                    data.Log(new LogEntry($"{cookie.Key}: {cookie.Value}", Colors.LightGoldenrodYellow));
                 }
 
                 // Save the response content
@@ -562,7 +592,8 @@ namespace RuriLib
                         data.Log(new LogEntry("Response Source:", Colors.Green));
                         if (readResponseSource)
                         {
-                            data.ResponseSource = response.ToString();
+                            if (responseString == "") responseString = response.ToString(); // Read the stream if you didn't already read it
+                            data.ResponseSource = responseString;
                             data.Log(new LogEntry(data.ResponseSource, Colors.GreenYellow));
                         }
                         else
@@ -573,9 +604,22 @@ namespace RuriLib
                         break;
 
                     case ResponseType.File:
-                        var file = ReplaceValues(downloadPath, data);
-                        using (var stream = File.Create(file)) { response.ToMemoryStream().CopyTo(stream); }
-                        data.Log(new LogEntry("File saved as " + file, Colors.Green));
+                        if (SaveAsScreenshot)
+                        {
+                            SaveScreenshot(response.ToMemoryStream(), data); // Read the stream
+                            data.Log(new LogEntry("File saved as screenshot", Colors.Green));
+                        }
+                        else
+                        {
+                            var filePath = ReplaceValues(downloadPath, data);
+                            var dirName = Path.GetDirectoryName(filePath);
+                            if (dirName != "") dirName += Path.DirectorySeparatorChar.ToString();
+                            var fileName = Path.GetFileNameWithoutExtension(filePath);
+                            var fileExtension = Path.GetExtension(filePath);
+                            var sanitizedPath = $"{dirName}{MakeValidFileName(fileName)}{fileExtension}";
+                            using (var stream = File.Create(sanitizedPath)) { response.ToMemoryStream().CopyTo(stream); } // Read the stream
+                            data.Log(new LogEntry("File saved as " + sanitizedPath, Colors.Green));
+                        }
                         break;
 
                     default:

@@ -2,6 +2,7 @@
 using OpenBullet.ViewModels;
 using RuriLib;
 using RuriLib.Models;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -87,6 +88,12 @@ namespace OpenBullet
 
         public void AddWordlist(Wordlist wordlist)
         {
+            if (vm.WordlistList.Any(w => w.Path == wordlist.Path))
+            {
+                Globals.LogError(Components.WordlistManager, $"Wordlist already present: {wordlist.Path}");
+                return;
+            }
+
             vm.WordlistList.Add(wordlist);
             AddWordlistToDB(wordlist);
         }
@@ -141,10 +148,13 @@ namespace OpenBullet
                     try
                     {
                         // Build the wordlist object
-                        var wordlist = new Wordlist(Path.GetFileNameWithoutExtension(file), file, Globals.environment.WordlistTypes.First().Name, "");
+                        var path = file;
+                        var cwd = Directory.GetCurrentDirectory();
+                        if (path.StartsWith(cwd)) path = path.Substring(cwd.Length + 1);
+                        var wordlist = new Wordlist(Path.GetFileNameWithoutExtension(file), path, Globals.environment.WordlistTypes.First().Name, "");
 
                         // Get the first line
-                        var first = File.ReadLines(wordlist.Path).First();
+                        var first = File.ReadLines(wordlist.Path).First(l => !string.IsNullOrWhiteSpace(l));
 
                         // Set the correct wordlist type
                         wordlist.Type = Globals.environment.RecognizeWordlistType(first);

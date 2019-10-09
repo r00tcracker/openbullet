@@ -6,6 +6,7 @@ using RuriLib.ViewModels;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 
@@ -25,6 +26,7 @@ namespace OpenBullet
         Settings,
         ListGenerator,
         SeleniumTools,
+        Database,
         ComboSuite,
         About
     }
@@ -32,7 +34,7 @@ namespace OpenBullet
     public static class Globals
     {
         // Version
-        public static string obVersion = "1.1.3";
+        public static string obVersion = "1.1.4";
 
         // Main Window
         public static MainWindow mainWindow;
@@ -43,6 +45,7 @@ namespace OpenBullet
 
         // Constant file paths
         public static string dataBaseFile = @"DB/OpenBullet.db";
+        public static string dataBaseBackupFile = @"DB/OpenBullet-BackupCopy.db";
         public static string obSettingsFile = @"Settings/OBSettings.json";
         public static string rlSettingsFile = @"Settings/RLSettings.json";
         public static string envFile = @"Settings/Environment.ini";
@@ -54,6 +57,7 @@ namespace OpenBullet
         public static OBSettingsViewModel obSettings;
         public static RLSettingsViewModel rlSettings;
         public static EnvironmentSettings environment;
+        public static Random random = new Random();
 
         // Runners
         public static ObservableCollection<RunnerViewModel> Runners = new ObservableCollection<RunnerViewModel>();
@@ -69,7 +73,11 @@ namespace OpenBullet
                 }
                 else
                 {
-                    AutoClosingMessageBox.Show(message, level.ToString(), timeout * 1000);
+                    var w = new System.Windows.Forms.Form() { Size = new System.Drawing.Size(0, 0) };
+                    Task.Delay(TimeSpan.FromSeconds(timeout))
+                        .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
+
+                    System.Windows.Forms.MessageBox.Show(w, message, level.ToString());
                 }
             }
 
@@ -111,6 +119,12 @@ namespace OpenBullet
             try
             {
                 log.List.Insert(0, entry);
+
+                var count = log.List.Count;
+                if (count > obSettings.General.LogBufferSize)
+                {
+                    log.List.RemoveAt(count - 1);
+                }
             }
             catch { }
         }
@@ -136,36 +150,5 @@ namespace OpenBullet
             try { return (SolidColorBrush)App.Current.Resources[propertyName]; }
             catch { return (SolidColorBrush)App.Current.Resources["ForegroundMain"]; }
         }
-    }
-
-    // Source: https://stackoverflow.com/questions/14522540/close-a-messagebox-after-several-seconds
-    public class AutoClosingMessageBox
-    {
-        System.Threading.Timer _timeoutTimer;
-        string _caption;
-        AutoClosingMessageBox(string text, string caption, int timeout)
-        {
-            _caption = caption;
-            _timeoutTimer = new System.Threading.Timer(OnTimerElapsed,
-                null, timeout, System.Threading.Timeout.Infinite);
-            using (_timeoutTimer)
-                MessageBox.Show(text, caption);
-        }
-        public static void Show(string text, string caption, int timeout)
-        {
-            new AutoClosingMessageBox(text, caption, timeout);
-        }
-        void OnTimerElapsed(object state)
-        {
-            IntPtr mbWnd = FindWindow("#32770", _caption); // lpClassName is #32770 for MessageBox
-            if (mbWnd != IntPtr.Zero)
-                SendMessage(mbWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-            _timeoutTimer.Dispose();
-        }
-        const int WM_CLOSE = 0x0010;
-        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-        static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-        static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
     }
 }

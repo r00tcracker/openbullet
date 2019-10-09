@@ -47,6 +47,18 @@ namespace RuriLib.ViewModels
         /// <summary>Whether to store the last Response Source after a successful check.</summary>
         public bool SaveLastSource { get { return saveLastSource; } set { saveLastSource = value; OnPropertyChanged(); } }
 
+        private bool webhookEnabled = false;
+        /// <summary>Whether to activate the hit webhook that gets called upon a SUCCESS or a custom result.</summary>
+        public bool WebhookEnabled { get { return webhookEnabled; } set { webhookEnabled = value; OnPropertyChanged(); } }
+
+        private string webhookURL = "";
+        /// <summary>The URL where the JSON-encoded hit gets sent.</summary>
+        public string WebhookURL { get { return webhookURL; } set { webhookURL = value; OnPropertyChanged(); } }
+
+        private string webhookUser = "Undefined";
+        /// <summary>The username of the user that is calling the webhook, as it will be received by the remote API.</summary>
+        public string WebhookUser { get { return webhookUser; }  set { webhookUser = value; OnPropertyChanged(); } }
+
         /// <summary>
         /// Resets the properties to their default value.
         /// </summary>

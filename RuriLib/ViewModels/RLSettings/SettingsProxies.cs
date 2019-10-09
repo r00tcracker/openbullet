@@ -34,6 +34,10 @@ namespace RuriLib.ViewModels
         /// <summary>Whether to never ban the proxies.</summary>
         public bool NeverBan { get { return neverBan; } set { neverBan = value; OnPropertyChanged(); } }
 
+        private int maxBans = 30;
+        /// <summary>The maximum amount of times a data line ends up with a BAN status before it's marked as ToCheck.</summary>
+        public int MaxBans { get { return maxBans; } set { maxBans = value; OnPropertyChanged(); } }
+
         private bool shuffleOnStart = false;
         /// <summary>Whether proxy lists should be shuffled before being assigned to the Runner.</summary>
         public bool ShuffleOnStart { get { return shuffleOnStart; } set { shuffleOnStart = value; OnPropertyChanged(); } }
@@ -55,6 +59,11 @@ namespace RuriLib.ViewModels
         private ProxyType reloadType = ProxyType.Http;
         /// <summary>The Type of the proxies to load.</summary>
         public ProxyType ReloadType { get { return reloadType; } set { reloadType = value; OnPropertyChanged(); } }
+
+        private int reloadInterval = 0;
+        /// <summary>The amount of time between reloads in minutes (0 to only reload when all proxies are banned).</summary>
+        public int ReloadInterval { get { return reloadInterval; } set { reloadInterval = value; OnPropertyChanged(); } }
+
         #endregion
 
         #region Cloudflare

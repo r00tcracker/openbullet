@@ -221,63 +221,46 @@ namespace OpenBullet
                 {
                     try
                     {
+                        var lines = File.ReadAllText(file).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
 
                         if ((file.ToLower()).Contains("http"))
-                            AddProxies(file, ProxyType.Http, File.ReadAllText(file).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).ToList());
-                        else if ((file.ToLower()).Contains("socks4"))
-                            AddProxies(file, ProxyType.Socks4, File.ReadAllText(file).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).ToList());
+                        {
+                            AddProxies(lines, ProxyType.Http);
+                        }
                         else if ((file.ToLower()).Contains("socks4a"))
-                            AddProxies(file, ProxyType.Socks4a, File.ReadAllText(file).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).ToList());
+                        {
+                            AddProxies(lines, ProxyType.Socks4a);
+                        }
+                        else if ((file.ToLower()).Contains("socks4"))
+                        {
+                            AddProxies(lines, ProxyType.Socks4);
+                        }
                         else if ((file.ToLower()).Contains("socks5"))
-                            AddProxies(file, ProxyType.Socks5, File.ReadAllText(file).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None).ToList());
+                        {
+                            AddProxies(lines, ProxyType.Socks5);
+                        }
                         else
-                            Globals.LogError(Components.ProxyManager, "Failed to parse proxies type from file name");
+                        {
+                            Globals.LogError(Components.ProxyManager, "Failed to parse proxies type from file name, defaulting to HTTP");
+                            AddProxies(lines);
+                        }
                     }
                     catch { }
                 }
             }
         }
-        public void AddProxies(string fileName, ProxyType type, List<string> lines)
+        public void AddProxies(List<string> lines, ProxyType defaultType = ProxyType.Http, string defaultUsername = "", string defaultPassword = "")
         {
-            List<string> fromFile = new List<string>();
-            List<string> fromBox = new List<string>();
-
-            // Load proxies from file
-            if (fileName != "")
-            {
-                Globals.LogInfo(Components.ProxyManager, $"Trying to load from file {fileName}");
-                fromFile.AddRange(File.ReadAllLines(fileName).ToList());
-            }
-            else { Globals.LogInfo(Components.ProxyManager, "No file specified, skipping the import from file"); }
-
-            // Load proxies from textbox lines
-            fromBox.AddRange(lines);
-
-            Globals.LogInfo(Components.ProxyManager, $"Adding {fromFile.Count + fromBox.Count} proxies to the database");
+            Globals.LogInfo(Components.ProxyManager, $"Adding {lines.Count} {defaultType} proxies to the database");
 
             // Check if they're valid
             var proxies = new List<CProxy>();
 
-            foreach (var p in fromFile.Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList())
+            foreach (var p in lines.Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList())
             {
                 try
                 {
-                    CProxy proxy = new CProxy(p, type);
-                    if (!proxy.IsNumeric || proxy.IsValidNumeric)
-                    {
-                        vm.ProxyList.Add(proxy);
-                        proxies.Add(proxy);
-                    }
-                }
-                catch { }
-            }
-
-            foreach (var p in fromBox.Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList())
-            {
-                try
-                {
-                    CProxy proxy = new CProxy();
-                    proxy.Parse(p, type);
+                    CProxy proxy = new CProxy().Parse(p, defaultType, defaultUsername, defaultPassword);
                     if (!proxy.IsNumeric || proxy.IsValidNumeric)
                     {
                         vm.ProxyList.Add(proxy);

@@ -1,5 +1,6 @@
 ﻿ using Extreme.Net;
 using LiteDB;
+using Newtonsoft.Json;
 using OpenBullet.ViewModels;
 using RuriLib;
 using RuriLib.Models;
@@ -29,7 +30,7 @@ namespace OpenBullet
     /// </summary>
     public partial class Runner : Page
     {
-        public RunnerViewModel vm = new RunnerViewModel(Globals.environment, Globals.rlSettings);
+        public RunnerViewModel vm = new RunnerViewModel(Globals.environment, Globals.rlSettings, Globals.random);
         public SoundPlayer hitPlayer;
         public SoundPlayer reloadPlayer;
 
@@ -262,12 +263,6 @@ namespace OpenBullet
 
         private void selectConfigButton_Click(object sender, RoutedEventArgs e)
         {
-            var manager = Globals.mainWindow.ConfigsPage.ConfigManagerPage.vm;
-            if (manager.SearchString != "")
-            {
-                manager.SearchString = "";
-                manager.RefreshList(false);
-            }
             (new MainDialog(new DialogSelectConfig(this), "Select Config")).ShowDialog();
         }
 

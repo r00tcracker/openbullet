@@ -17,16 +17,23 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="3*"/>
-            <RowDefinition Height="2*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Column="0" Grid.Row="0" Margin="5">
-            <Label Content="General"/>
+            <Label Content="General" FontWeight="Bold"/>
             <CheckBox Content="Allow Concurrent Use" IsChecked="{Binding ConcurrentUse}" VerticalContentAlignment="Center"/>
             <CheckBox Content="Never Ban Proxies" IsChecked="{Binding NeverBan}" VerticalContentAlignment="Center"/>
+            <DockPanel>
+                <Label Content="Ban Loop Evasion (0 = disable)" />
+                <xctk:IntegerUpDown Background="Transparent" Width="65" Margin="10 0 0 0" Value="{Binding MaxBans}" Foreground="{DynamicResource ForegroundMain}" HorizontalAlignment="Right" />
+                <DockPanel.ToolTip>
+                    How many times a data line should be retried upon BAN status before being sent to TOCHECK
+                </DockPanel.ToolTip>
+            </DockPanel>
             <CheckBox Content="Shuffle Proxies on Start" IsChecked="{Binding ShuffleOnStart}" VerticalContentAlignment="Center" />
-            <Label Content="CloudFlare"/>
+            <Label Content="CloudFlare" FontWeight="Bold"/>
             <CheckBox Content="Don't Reuse Clearance Cookie (CF)" IsChecked="{Binding AlwaysGetClearance}" VerticalContentAlignment="Center"/>
         </StackPanel>
 
@@ -38,7 +45,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             
-                <Label Grid.Row="0" Content="Global Ban Keys:" />
+            <Label Grid.Row="0" Content="Global Ban Keys:" />
             <RichTextBox x:Name="globalBanKeysTextbox" Grid.Row="1" Background="{DynamicResource BackgroundSecondary}" Foreground="{DynamicResource ForegroundMain}" FontFamily="Consolas" TextChanged="globalBanKeysTextbox_TextChanged">
                 <RichTextBox.Resources>
                     <Style TargetType="{x:Type Paragraph}">
@@ -61,6 +68,10 @@
             <StackPanel>
                 <Label Content="Reloading"/>
                 <CheckBox Content="Reload proxies when all banned" IsChecked="{Binding Reload}" VerticalContentAlignment="Center"/>
+                <DockPanel DockPanel.Dock="Top">
+                    <Label Content="Reload interval in minutes (0 = only reload when all banned):" />
+                    <xctk:IntegerUpDown Background="Transparent" Width="70" Margin="10 0 0 0" Value="{Binding ReloadInterval}" Foreground="{DynamicResource ForegroundMain}"  HorizontalAlignment="Right"/>
+                </DockPanel>
 
                 <StackPanel Orientation="Horizontal">
                     <Label Content="Source:"/>
