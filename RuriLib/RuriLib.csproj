@@ -188,6 +188,7 @@
       <Private>True</Private>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -211,6 +212,14 @@
     <Compile Include="CaptchaServices\CaptchasIO.cs" />
     <Compile Include="CaptchaServices\CustomTwoCaptcha.cs" />
     <Compile Include="CaptchaServices\RuCaptcha.cs" />
+    <Compile Include="CaptchaServices\Service.cs" />
+    <Compile Include="Functions\Conversion\Conversion.cs" />
+    <Compile Include="Functions\Crypto\Crypto.cs" />
+    <Compile Include="Functions\Download\Download.cs" />
+    <Compile Include="Functions\Encoding\Encode.cs" />
+    <Compile Include="Functions\Files\Files.cs" />
+    <Compile Include="Functions\Requests\Request.cs" />
+    <Compile Include="Functions\Time\Time.cs" />
     <Compile Include="GZip.cs" />
     <Compile Include="LoliScript\Exceptions\BlockProcessingException.cs" />
     <Compile Include="LoliScript\LoliScript.cs" />
@@ -246,7 +255,7 @@
     <Compile Include="CaptchaServices\ImageTyperz.cs" />
     <Compile Include="CaptchaServices\SolveReCaptcha.cs" />
     <Compile Include="CaptchaServices\TwoCaptcha.cs" />
-    <Compile Include="ConditionChecker.cs" />
+    <Compile Include="Functions\Conditions\Condition.cs" />
     <Compile Include="IOManager.cs" />
     <Compile Include="LoliScript\Parser\LineParser.cs" />
     <Compile Include="LoliScript\Parser\DeleteParser.cs" />
@@ -262,6 +271,7 @@
     <Compile Include="Runner\RunnerBotViewModel.cs" />
     <Compile Include="Runner\RunnerViewModel.cs" />
     <Compile Include="TypeSwitch.cs" />
+    <Compile Include="Functions\Parsing\Parse.cs" />
     <Compile Include="ViewModels\ConfigViewModel.cs" />
     <Compile Include="Models\CProxy.cs" />
     <Compile Include="Models\LogEntry.cs" />

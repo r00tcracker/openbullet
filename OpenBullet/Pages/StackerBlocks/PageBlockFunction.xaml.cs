@@ -1,6 +1,9 @@
 ﻿using RuriLib;
+using RuriLib.Functions.Crypto;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace OpenBullet.Pages.StackerBlocks
@@ -23,14 +26,30 @@ namespace OpenBullet.Pages.StackerBlocks
 
             functionTypeCombobox.SelectedIndex = (int)vm.FunctionType;
 
-            foreach (var h in Enum.GetNames(typeof(BlockFunction.Hash)))
+            foreach (var h in Enum.GetNames(typeof(Hash)))
             {
                 hashTypeCombobox.Items.Add(h);
                 hmacHashTypeCombobox.Items.Add(h);
+                kdfAlgorithmCombobox.Items.Add(h);
             }
 
             hashTypeCombobox.SelectedIndex = (int)vm.HashType;
             hmacHashTypeCombobox.SelectedIndex = (int)vm.HashType;
+            kdfAlgorithmCombobox.SelectedIndex = (int)vm.KdfAlgorithm;
+
+            foreach (var m in Enum.GetNames(typeof(CipherMode)))
+            {
+                aesModeCombobox.Items.Add(m);
+            }
+
+            aesModeCombobox.SelectedIndex = (int)vm.AesMode - 1;
+
+            foreach (var p in Enum.GetNames(typeof(PaddingMode)))
+            {
+                aesPaddingCombobox.Items.Add(p);
+            }
+
+            aesPaddingCombobox.SelectedIndex = (int)vm.AesPadding - 1;
 
             dictionaryRTB.AppendText(vm.GetDictionary());
         }
@@ -78,7 +97,8 @@ namespace OpenBullet.Pages.StackerBlocks
                     functionTabControl.SelectedIndex = 8;
                     break;
 
-                case BlockFunction.Function.RSA:
+                case BlockFunction.Function.RSAEncrypt:
+                case BlockFunction.Function.RSADecrypt:
                     functionTabControl.SelectedIndex = 9;
                     break;
 
@@ -91,23 +111,14 @@ namespace OpenBullet.Pages.StackerBlocks
                     break;
 
                 case BlockFunction.Function.AESEncrypt:
-                    functionTabControl.SelectedIndex = 12;
-                    break;
-
                 case BlockFunction.Function.AESDecrypt:
                     functionTabControl.SelectedIndex = 12;
                     break;
+
+                case BlockFunction.Function.PBKDF2PKCS5:
+                    functionTabControl.SelectedIndex = 13;
+                    break;
             }
-        }
-
-        private void hashTypeCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            vm.HashType = (BlockFunction.Hash)((ComboBox)e.OriginalSource).SelectedIndex;
-        }
-
-        private void hmacHashTypeCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            vm.HashType = (BlockFunction.Hash)((ComboBox)e.OriginalSource).SelectedIndex;
         }
 
         public Dictionary<string, string> infoDic = new Dictionary<string, string>()
@@ -118,16 +129,43 @@ namespace OpenBullet.Pages.StackerBlocks
             { "RandomString", "?l = Lowercase, ?u = Uppercase, ?d = Digit, ?s = Symbol, ?h = Hex (Lowercase), ?m = Upper + Digits, ?i = Lower + Upper + Digits, ?a = Any"},
             { "Translate", "Format like headers (this: that), one per line." },
             { "Compute", "Calculates the value of a math expression, for example (6+3)*5 will return 45." },
-            { "RSA", "Thanks to TheLittleTrain17 for this implementation" },
+            { "RSAEncrypt", "Encrypts data with RSA. All parameters must be provided as base64 strings" },
+            { "RSADecrypt", "Decrypts data with RSA. All parameters must be provided as base64 strings" },
             { "Delay", "Write the amount of MILLISECONDS you want to wait in the input field" },
             { "CharAt", "Returns the character at the specified index of the string in the input field" },
-            { "AESEncrypt", "256-bit key" },
-            { "AESDecrypt", "256-bit key" }
+            { "AESEncrypt", "Encrypts data with AES. All parameters must be provided as base64 strings. Uses SHA-256 to get a 256 bit key" },
+            { "AESDecrypt", "Decrypts data with AES. All parameters must be provided as base64 strings. Uses SHA-256 to get a 256 bit key" },
+            { "PBKDF2PKCS5", "Generates a key based on a password. The salt, if provided, must be a base64 string" }
         };
 
         private void dictionaryRTB_TextChanged(object sender, TextChangedEventArgs e)
         {
             vm.SetDictionary(dictionaryRTB.Lines());
+        }
+
+        private void hashTypeCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            vm.HashType = (Hash)((ComboBox)e.OriginalSource).SelectedIndex;
+        }
+
+        private void hmacHashTypeCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            vm.HashType = (Hash)((ComboBox)e.OriginalSource).SelectedIndex;
+        }
+
+        private void aesModeCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            vm.AesMode = (CipherMode)(((ComboBox)e.OriginalSource).SelectedIndex + 1);
+        }
+
+        private void aesPaddingCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            vm.AesPadding = (PaddingMode)(((ComboBox)e.OriginalSource).SelectedIndex + 1);
+        }
+
+        private void kdfAlgorithmCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            vm.KdfAlgorithm = (Hash)((ComboBox)e.OriginalSource).SelectedIndex;
         }
     }
 }

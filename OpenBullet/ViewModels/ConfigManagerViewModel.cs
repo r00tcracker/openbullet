@@ -1,6 +1,7 @@
 ﻿using Extreme.Net;
 using OpenBullet.Models;
 using RuriLib;
+using RuriLib.Functions.Formats;
 using RuriLib.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -35,7 +36,20 @@ namespace OpenBullet.ViewModels
         public Config moreInfoConfig;
         public Config MoreInfoConfig { get { return moreInfoConfig; } set { moreInfoConfig = value; OnPropertyChanged("MoreInfoConfig"); } }
 
-        public string CurrentConfigName { get { return Globals.mainWindow.ConfigsPage.CurrentConfig.Name; } }
+        public string CurrentConfigName 
+        { 
+            get 
+            { 
+                if (Globals.mainWindow.ConfigsPage.CurrentConfig != null)
+                {
+                    return Globals.mainWindow.ConfigsPage.CurrentConfig.Name;
+                }
+                else
+                {
+                    return "None";
+                }
+            } 
+        }
 
         private string searchString = "";
         public string SearchString { get { return searchString; } set { searchString = value; OnPropertyChanged("SearchString"); OnPropertyChanged("ConfigsList"); OnPropertyChanged("Total"); } }
@@ -117,7 +131,7 @@ namespace OpenBullet.ViewModels
                         break;
 
                     case Source.AuthMode.UserPass:
-                        var header = BlockFunction.Base64Encode($"{source.Username}:{source.Password}");
+                        var header = ($"{source.Username}:{source.Password}").ToBase64();
                         wc.Headers.Add(HttpRequestHeader.Authorization, $"Basic {header}");
                         break;
 
