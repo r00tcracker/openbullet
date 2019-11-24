@@ -216,7 +216,7 @@ namespace RuriLib.Utils.Parsing
                     else
                     {
                         JObject json = JObject.Parse(input);
-                        list.Add(json.SelectTokens(field, false).ToString());
+                        list.Add(json.SelectToken(field, false).ToString());
                     }
                 }
             }
