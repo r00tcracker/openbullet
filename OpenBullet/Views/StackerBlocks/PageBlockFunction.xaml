@@ -49,6 +49,7 @@
                         <Label Content="Hash Type:"/>
                         <ComboBox x:Name="hashTypeCombobox" SelectionChanged="hashTypeCombobox_SelectionChanged"/>
                     </DockPanel>
+                    <CheckBox VerticalContentAlignment="Center" Content="Input is Base64" IsChecked="{Binding InputBase64}" ToolTip="Whether the input is a base64-encoded string instead of UTF8"/>
                 </StackPanel>
             </TabItem>
             <TabItem x:Name="hmacTab">
@@ -61,7 +62,8 @@
                         <Label Content="HMAC Key:"/>
                         <TextBox Text="{Binding HmacKey, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
-                    <CheckBox VerticalContentAlignment="Center" Content="HMAC Key Base64" IsChecked="{Binding KeyBase64}" ToolTip="Whether HMAC Key uses base64 encoding instead of ascii"/>
+                    <CheckBox VerticalContentAlignment="Center" Content="Input is Base64" IsChecked="{Binding InputBase64}" ToolTip="Whether the input is a base64-encoded string instead of UTF8"/>
+                    <CheckBox VerticalContentAlignment="Center" Content="HMAC Key Base64" IsChecked="{Binding KeyBase64}" ToolTip="Whether the HMAC Key is a base64-encoded string instead of UTF8"/>
                     <CheckBox VerticalContentAlignment="Center" Content="Output Base64" IsChecked="{Binding HmacBase64}" ToolTip="Whether to output with base64 encoding instead of hex encoding"/>
                 </StackPanel>
             </TabItem>
@@ -161,6 +163,18 @@
                     <CheckBox Content="Use OAEP instead of PKCS v1.5" IsChecked="{Binding RsaOAEP}" VerticalContentAlignment="Center"/>
                 </StackPanel>
             </TabItem>
+            <TabItem x:Name="rsaPkcs1Pad2Tab">
+                <StackPanel>
+                    <DockPanel Margin="0 5 0 0">
+                        <Label Content="Public Key Modulus (n):"/>
+                        <TextBox Text="{Binding RsaN, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                    <DockPanel Margin="0 5 0 0">
+                        <Label Content="Public Key Exponent (e):"/>
+                        <TextBox Text="{Binding RsaE, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                </StackPanel>
+            </TabItem>
             <TabItem x:Name="charAtTab">
                 <StackPanel>
                     <DockPanel>
@@ -234,18 +248,6 @@
                     <DockPanel Margin="0 5 0 0">
                         <Label Content="Algorithm:"/>
                         <ComboBox x:Name="kdfAlgorithmCombobox" SelectionChanged="kdfAlgorithmCombobox_SelectionChanged"/>
-                    </DockPanel>
-                </StackPanel>
-            </TabItem>
-            <TabItem x:Name="unixTimeToDateTab">
-                <StackPanel>
-                    <DockPanel>
-                        <Label Content="Date Format:"/>
-                        <TextBox Text="{Binding DateFormat, UpdateSourceTrigger=PropertyChanged}">
-                            <TextBox.ToolTip>
-                                <TextBlock>Key characters:<LineBreak/>y: year<LineBreak/>M: month<LineBreak/>d: day<LineBreak/>H: hour<LineBreak/>m: minute<LineBreak/>s: second</TextBlock>
-                            </TextBox.ToolTip>
-                        </TextBox>
                     </DockPanel>
                 </StackPanel>
             </TabItem>
