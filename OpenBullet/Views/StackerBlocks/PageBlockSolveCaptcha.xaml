@@ -125,6 +125,10 @@
             <TabItem>
                 <StackPanel>
                     <DockPanel>
+                        <Label Content="Site URL:"/>
+                        <TextBox Text="{Binding SiteUrl, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+                    <DockPanel>
                         <Label Content="Public Key:"/>
                         <TextBox Text="{Binding PublicKey, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
@@ -153,6 +157,10 @@
             <!-- KEY CAPTCHA -->
             <TabItem>
                 <StackPanel>
+                    <DockPanel>
+                        <Label Content="Site URL:"/>
+                        <TextBox Text="{Binding SiteUrl, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
                     <DockPanel>
                         <Label Content="User ID:"/>
                         <TextBox Text="{Binding UserId, UpdateSourceTrigger=PropertyChanged}"/>
